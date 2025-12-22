@@ -573,6 +573,17 @@ export const VIDEOS: VideoData[] = [
     video_link: 'https://www.youtube.com/watch?v=Z76IFO0dVvo',
     game: 'Street Fighter III: 3rd Strike',
   },
+  {
+    id: 1,
+    upload_date: '2025-10-28',
+    tag: 'Fightcade FT5',
+    p1_name: 'akaata1',
+    p1_char: 'Yang',
+    p2_name: 'Cruise',
+    p2_char: 'Urien',
+    video_link: ' https://www.youtube.com/watch?v=N4F0RUCN_IE',
+    game: 'Street Fighter III: 3rd Strike',
+  },
 ];
 
 // Helper function to extract video ID from YouTube URL
