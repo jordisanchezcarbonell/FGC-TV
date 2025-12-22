@@ -14,6 +14,8 @@ export default function Home() {
   const [currentVideo, setCurrentVideo] = useState<VideoData | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const isPlayerReadyRef = useRef(false);
+
   const [hasError, setHasError] = useState(false);
   const [viewers, setViewers] = useState(0);
 
@@ -21,14 +23,16 @@ export default function Home() {
     const randomIndex = Math.floor(Math.random() * VIDEOS.length);
     return VIDEOS[randomIndex];
   };
-
   const loadNextVideo = () => {
     const nextVideo = getRandomVideo();
     setCurrentVideo(nextVideo);
     setHasError(false);
 
-    if (playerRef.current && isPlayerReady) {
-      const videoId = extractVideoId(nextVideo.video_link);
+    const videoId = extractVideoId(nextVideo.video_link);
+
+    if (playerRef.current && isPlayerReadyRef.current) {
+      playerRef.current.mute(); // opcional para evitar bloqueos
+      setIsMuted(true);
       playerRef.current.loadVideoById(videoId);
     }
   };
@@ -51,7 +55,7 @@ export default function Home() {
     const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
     (window as any).onYouTubeIframeAPIReady = () => {
-      const initialVideo = getRandomVideo();
+      const initialVideo = VIDEOS.find((v) => v.id === 1) ?? getRandomVideo();
       setCurrentVideo(initialVideo);
       const videoId = extractVideoId(initialVideo.video_link);
 
@@ -69,6 +73,7 @@ export default function Home() {
         },
         events: {
           onReady: (event: YT.PlayerEvent) => {
+            isPlayerReadyRef.current = true;
             setIsPlayerReady(true);
             event.target.playVideo();
           },
