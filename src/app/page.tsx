@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { VIDEOS, extractVideoId, type VideoData } from '@/lib/video-ids';
+
 import { Volume2, VolumeX, SkipForward, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { YT } from 'youtube-player';
+// import type { YT } from 'youtube-player';
+// Use the global YT type from the YouTube IFrame API instead.
+import { VideoData, VIDEOS, extractVideoId } from '../../lib/video-ids';
 
 export default function Home() {
   const playerRef = useRef<YT.Player | null>(null);
@@ -41,20 +44,6 @@ export default function Home() {
       }
     }
   };
-
-  useEffect(() => {
-    const baseViewers = Math.floor(Math.random() * 200) + 150;
-    setViewers(baseViewers);
-
-    const interval = setInterval(() => {
-      setViewers((prev) => {
-        const change = Math.floor(Math.random() * 10) - 5;
-        return Math.max(100, Math.min(400, prev + change));
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const tag = document.createElement('script');
