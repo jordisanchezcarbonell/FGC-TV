@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/melty-update", "schedule": "0 22 * * *" },
+    { "path": "/api/cron/melty-update", "schedule": "0 23 * * *" }
+  ]
+}
