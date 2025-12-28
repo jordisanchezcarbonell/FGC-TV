@@ -1,102 +1,147 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-
-import { Volume2, VolumeX, SkipForward, Radio } from 'lucide-react';
+import { Volume2, VolumeX, SkipForward, Radio, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-// import type { YT } from 'youtube-player';
-// Use the global YT type from the YouTube IFrame API instead.
 import { VideoData, VIDEOS, extractVideoId } from '../../lib/video-ids';
 
 export default function Home() {
   const playerRef = useRef<YT.Player | null>(null);
+
   const [currentVideo, setCurrentVideo] = useState<VideoData | null>(null);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
+
+  const [hasStarted, setHasStarted] = useState(false);
+  const hasStartedRef = useRef(false);
+
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const isPlayerReadyRef = useRef(false);
 
   const [hasError, setHasError] = useState(false);
-  const [viewers, setViewers] = useState(0);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
   const getRandomVideo = () => {
     const randomIndex = Math.floor(Math.random() * VIDEOS.length);
     return VIDEOS[randomIndex];
   };
+
+  const applyMuteState = (player: YT.Player) => {
+    if (isMutedRef.current) player.mute();
+    else player.unMute();
+  };
+
   const loadNextVideo = () => {
     const nextVideo = getRandomVideo();
     setCurrentVideo(nextVideo);
     setHasError(false);
 
-    const videoId = extractVideoId(nextVideo.video_link);
+    const player = playerRef.current;
+    if (!player || !isPlayerReadyRef.current) return;
 
-    if (playerRef.current && isPlayerReadyRef.current) {
-      playerRef.current.mute(); // opcional para evitar bloqueos
-      setIsMuted(true);
-      playerRef.current.loadVideoById(videoId);
-    }
+    // Si el usuario aún no ha hecho click (no ha empezado), NO intentes reproducir.
+    // Deja el cambio de metadata, y cuando haga Play arrancará el vídeo inicial.
+    if (!hasStartedRef.current) return;
+
+    const videoId = extractVideoId(nextVideo.video_link);
+    applyMuteState(player);
+    player.loadVideoById(videoId); // loadVideoById normalmente carga y reproduce
   };
 
   const toggleMute = () => {
-    if (playerRef.current) {
-      if (isMuted) {
-        playerRef.current.unMute();
-        setIsMuted(false);
-      } else {
-        playerRef.current.mute();
-        setIsMuted(true);
-      }
-    }
+    const player = playerRef.current;
+    if (!player) return;
+
+    setIsMuted((prev) => {
+      const next = !prev;
+      isMutedRef.current = next;
+
+      if (next) player.mute();
+      else player.unMute();
+
+      return next;
+    });
+  };
+  const startPlayback = () => {
+    const player = playerRef.current;
+    if (!player || !isPlayerReadyRef.current || !currentVideo) return;
+
+    hasStartedRef.current = true;
+    setHasStarted(true);
+
+    // Asegura sonido
+    isMutedRef.current = false;
+    setIsMuted(false);
+
+    const videoId = extractVideoId(currentVideo.video_link);
+
+    // En el click (gesto del usuario) ya puedes arrancar con audio
+    player.unMute();
+    player.loadVideoById(videoId);
   };
 
   useEffect(() => {
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-    (window as any).onYouTubeIframeAPIReady = () => {
-      const initialVideo = VIDEOS.find((v) => v.id === 1) ?? getRandomVideo();
+    // Evita insertar el script más de una vez
+    if (
+      !document.querySelector(
+        'script[src="https://www.youtube.com/iframe_api"]'
+      )
+    ) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+
+    window.onYouTubeIframeAPIReady = () => {
+      const initialVideo = getRandomVideo();
       setCurrentVideo(initialVideo);
+
       const videoId = extractVideoId(initialVideo.video_link);
 
-      playerRef.current = new (window as any).YT.Player('youtube-player', {
+      playerRef.current = new window.YT.Player('youtube-player', {
         height: '100%',
         width: '100%',
-        videoId: videoId,
+        videoId,
         playerVars: {
-          autoplay: 1,
-          mute: 1,
+          autoplay: 0, // <- clave
+          mute: 0, // <- clave
           controls: 0,
           rel: 0,
           modestbranding: 1,
           iv_load_policy: 3,
+          playsinline: 1,
         },
         events: {
-          onReady: (event: YT.PlayerEvent) => {
+          onReady: () => {
             isPlayerReadyRef.current = true;
             setIsPlayerReady(true);
-            event.target.playVideo();
+            // NO play aquí. Esperamos click del usuario (startPlayback).
           },
           onStateChange: (event: YT.OnStateChangeEvent) => {
-            if (event.data === (window as any).YT.PlayerState.ENDED) {
+            if (event.data === window.YT.PlayerState.ENDED) {
               loadNextVideo();
             }
           },
-          onError: (event: YT.OnErrorEvent) => {
+          onError: () => {
             setHasError(true);
-            setTimeout(() => {
-              loadNextVideo();
-            }, 2000);
+
+            // Si ya empezó, saltamos a otro; si no, solo mostramos overlay
+            if (hasStartedRef.current) {
+              setTimeout(loadNextVideo, 1500);
+            }
           },
         },
       });
     };
 
     return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy();
-      }
+      if (playerRef.current) playerRef.current.destroy();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -131,6 +176,24 @@ export default function Home() {
           <div className='relative aspect-video w-full bg-black'>
             <div id='youtube-player' className='absolute inset-0' />
 
+            {/* Overlay de inicio con sonido */}
+            {!hasStarted && (
+              <div className='absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70'>
+                <div className='text-center'>
+                  <p className='text-white text-lg font-semibold'>
+                    Pulsa para reproducir con sonido
+                  </p>
+                  <p className='text-white/70 text-sm'>
+                    El navegador bloquea autoplay con audio sin interacción.
+                  </p>
+                </div>
+                <Button onClick={startPlayback} className='gap-2'>
+                  <Play className='h-4 w-4' />
+                  Play
+                </Button>
+              </div>
+            )}
+
             {hasError && (
               <div className='absolute inset-0 flex items-center justify-center bg-black/80'>
                 <p className='text-white'>Video unavailable, loading next...</p>
@@ -149,6 +212,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+
                 <div className='mt-3 flex items-center justify-center gap-4 text-white'>
                   <div className='text-right'>
                     <div className='text-lg font-bold'>
@@ -177,6 +241,7 @@ export default function Home() {
                 size='icon'
                 variant='outline'
                 className='h-10 w-10 bg-black/60 backdrop-blur-sm hover:bg-black/80'
+                disabled={!isPlayerReady}
               >
                 {isMuted ? (
                   <VolumeX className='h-4 w-4' />
@@ -190,6 +255,7 @@ export default function Home() {
                 size='icon'
                 variant='outline'
                 className='h-10 w-10 bg-black/60 backdrop-blur-sm hover:bg-black/80'
+                disabled={!isPlayerReady}
               >
                 <SkipForward className='h-4 w-4' />
               </Button>
