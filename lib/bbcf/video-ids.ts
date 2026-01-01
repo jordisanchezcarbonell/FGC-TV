@@ -40288,8 +40288,7 @@ export const VIDEOS_BBCF: VideoData[] = [
   {
     id: 153220736596226,
     upload_date: '2024-06-18',
-    tag: 'EUOpen CF Bi-Weekly #4-2
-',
+    tag: 'EUOpen CF Bi-Weekly #4-2',
     p1_name: 'Denys',
     p1_char: 'Iron Tager',
     p2_name: 'MakoShojo',
@@ -40300,8 +40299,7 @@ export const VIDEOS_BBCF: VideoData[] = [
   {
     id: 152697491727493,
     upload_date: '2024-06-18',
-    tag: 'EUOpen CF Bi-Weekly #4-2
-',
+tag: 'EUOpen CF Bi-Weekly #4-2',
     p1_name: 'LiamManTheAngry',
     p1_char: 'Lambda-11',
     p2_name: 'Nesica',
@@ -40312,8 +40310,7 @@ export const VIDEOS_BBCF: VideoData[] = [
   {
     id: 104629927383223,
     upload_date: '2024-06-18',
-    tag: 'EUOpen CF Bi-Weekly #4-2
-',
+tag: 'EUOpen CF Bi-Weekly #4-2',
     p1_name: 'LiamManTheAngry',
     p1_char: 'Nu-13',
     p2_name: 'Nesica',
@@ -40324,8 +40321,7 @@ export const VIDEOS_BBCF: VideoData[] = [
   {
     id: 49411667018929,
     upload_date: '2024-06-18',
-    tag: 'EUOpen CF Bi-Weekly #4-2
-',
+tag: 'EUOpen CF Bi-Weekly #4-2',
     p1_name: 'LiamManTheAngry',
     p1_char: 'Nu-13',
     p2_name: 'Nesica',
@@ -40336,8 +40332,7 @@ export const VIDEOS_BBCF: VideoData[] = [
   {
     id: 40482582069582,
     upload_date: '2024-06-18',
-    tag: 'EUOpen CF Bi-Weekly #4-2
-',
+tag: 'EUOpen CF Bi-Weekly #4-2',
     p1_name: 'Denys',
     p1_char: 'Iron Tager',
     p2_name: 'Nesica',

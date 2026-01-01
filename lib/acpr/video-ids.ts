@@ -17892,8 +17892,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 261368713774278,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+    tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'TheMythicJ',
     p1_char: 'Ky Kiske',
     p2_name: 'patajavi',
@@ -17948,8 +17947,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 210908854555737,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'ChartSol',
     p1_char: 'Sol Badguy',
     p2_name: 'Business Casual',
@@ -17960,8 +17958,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 207481220640314,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Gante',
     p1_char: 'Sol Badguy',
     p2_name: 'patajavi',
@@ -17972,8 +17969,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 203848085149597,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Andew',
     p1_char: 'Order-Sol',
     p2_name: 'BenFish',
@@ -17995,8 +17991,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 196271261074429,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Gante',
     p1_char: 'Sol Badguy',
     p2_name: 'patajavi',
@@ -18007,8 +18002,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 183578972212118,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'BenFish',
     p1_char: 'Robo-Ky',
     p2_name: 'Gante',
@@ -18019,8 +18013,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 182410779092011,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Gante',
     p1_char: 'Sol Badguy',
     p2_name: 'Doublebear',
@@ -18031,8 +18024,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 173654609279356,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Ostman',
     p1_char: 'Slayer',
     p2_name: 'Gante',
@@ -18043,8 +18035,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 161201034468832,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Espada',
     p1_char: 'May',
     p2_name: 'Andew',
@@ -18066,8 +18057,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 124444158464687,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'TheMythicJ',
     p1_char: 'Dizzy',
     p2_name: 'Ostman',
@@ -18078,8 +18068,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 122471578071159,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'BenFish',
     p1_char: 'Robo-Ky',
     p2_name: 'Ostman',
@@ -18090,8 +18079,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 114017798874257,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'TheMythicJ',
     p1_char: 'Dizzy',
     p2_name: 'patajavi',
@@ -18102,8 +18090,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 87863700682674,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'Gante',
     p1_char: 'Sol Badguy',
     p2_name: 'Business Casual',
@@ -18114,8 +18101,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 87728053646033,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'ProbablyLurking',
     p1_char: 'Axl Low',
     p2_name: 'TheMythicJ',
@@ -18126,8 +18112,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 78192651179088,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'TheMythicJ',
     p1_char: 'Ky Kiske',
     p2_name: 'Business Casual',
@@ -18193,8 +18178,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 47413632009342,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'BenFish',
     p1_char: 'Robo-Ky',
     p2_name: 'patajavi',
@@ -18249,8 +18233,7 @@ export const VIDEOS_ACPR: VideoData[] = [
   {
     id: 23711345903481,
     upload_date: '2024-02-09',
-    tag: 'TMN Presents: Guilty Gear XX AC+R #24
-',
+ tag: 'TMN Presents: Guilty Gear XX AC+R #24',
     p1_name: 'ChartSol',
     p1_char: 'Sol Badguy',
     p2_name: 'Ostman',
