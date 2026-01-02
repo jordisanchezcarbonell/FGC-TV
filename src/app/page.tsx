@@ -7,7 +7,14 @@ import { Button } from '@/components/ui/button';
 import { VideoData, VIDEOS, extractVideoId } from '../../lib/video-ids';
 import { GameFiltersPro } from '@/components/components/GameFilters';
 import { FilterMode } from '@/components/components/GameFiltersPro';
-const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+// 10 minutos reales
+const AUTO_SKIP_MS = 10 * 60 * 1000;
+const TICK_MS = 1000;
+
+// Debug (browser) + Logs a Vercel (server)
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
+const LOG_TO_SERVER = process.env.NEXT_PUBLIC_LOG_TO_SERVER === '1';
 
 function pickRandom(pool: VideoData[], avoidId?: string | number | null) {
   if (!pool.length) return null;
@@ -22,6 +29,32 @@ function pickRandom(pool: VideoData[], avoidId?: string | number | null) {
     }
   }
   return next;
+}
+
+function ytStateName(s: number) {
+  switch (s) {
+    case -1:
+      return 'UNSTARTED';
+    case 0:
+      return 'ENDED';
+    case 1:
+      return 'PLAYING';
+    case 2:
+      return 'PAUSED';
+    case 3:
+      return 'BUFFERING';
+    case 5:
+      return 'CUED';
+    default:
+      return `UNKNOWN(${s})`;
+  }
+}
+
+function fmtMMSS(totalSec: number) {
+  const sec = Math.max(0, Math.floor(totalSec));
+  const m = String(Math.floor(sec / 60)).padStart(2, '0');
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
 }
 
 export default function Home() {
@@ -44,6 +77,18 @@ export default function Home() {
   // Filtros pro
   const [filterMode, setFilterMode] = useState<FilterMode>('ALL');
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
+
+  // Timer UI
+  const [nextInSec, setNextInSec] = useState<number | null>(null);
+  const [playSec, setPlaySec] = useState(0);
+  const [durSec, setDurSec] = useState(0);
+
+  // Auto-skip rearmable
+  const autoSkipAtRef = useRef<number | null>(null);
+  const autoSkipTimeoutRef = useRef<number | null>(null);
+
+  // Logging / state tracking
+  const lastStateRef = useRef<number | null>(null);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
@@ -97,9 +142,43 @@ export default function Home() {
     poolRef.current = filteredVideos;
   }, [filteredVideos]);
 
-  const getRandomVideo = () => {
-    const pool = poolRef.current;
-    return pickRandom(pool, currentVideoRef.current?.id ?? null);
+  const logEvent = (type: string, payload: Record<string, any> = {}) => {
+    const base = {
+      type,
+      ts: Date.now(),
+      currentVideoId: currentVideoRef.current?.id ?? null,
+      currentGame: currentVideoRef.current?.game ?? null,
+      hasStarted: hasStartedRef.current,
+      isReady: isPlayerReadyRef.current,
+      isMuted: isMutedRef.current,
+      poolSize: poolRef.current.length,
+      ...payload,
+    };
+
+    if (DEBUG) {
+      // Browser console
+
+      console.log('[FGC-TV]', base);
+    }
+
+    if (LOG_TO_SERVER) {
+      // Vercel Logs (Functions) via /api/log
+      fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(base),
+        keepalive: true,
+      }).catch(() => {});
+    }
+  };
+
+  const clearAutoSkip = () => {
+    if (autoSkipTimeoutRef.current != null) {
+      window.clearTimeout(autoSkipTimeoutRef.current);
+      autoSkipTimeoutRef.current = null;
+    }
+    autoSkipAtRef.current = null;
+    setNextInSec(null);
   };
 
   const applyMuteState = (player: any) => {
@@ -107,13 +186,44 @@ export default function Home() {
     else player.unMute();
   };
 
-  const loadNextVideo = () => {
+  const getRandomVideo = () => {
+    const pool = poolRef.current;
+    return pickRandom(pool, currentVideoRef.current?.id ?? null);
+  };
+
+  // arm auto-skip (rearmable)
+  const armAutoSkip = (reason: string) => {
+    if (!isPlayerReadyRef.current) return;
+    if (!hasStartedRef.current) return;
+
+    clearAutoSkip();
+
+    const at = Date.now() + AUTO_SKIP_MS;
+    autoSkipAtRef.current = at;
+
+    logEvent('auto_skip_armed', { reason, inMs: AUTO_SKIP_MS });
+
+    autoSkipTimeoutRef.current = window.setTimeout(() => {
+      logEvent('auto_skip_fired', { reason });
+      loadNextVideo('auto-skip');
+    }, AUTO_SKIP_MS);
+  };
+
+  const loadNextVideo = (reason: string = 'manual') => {
     const nextVideo = getRandomVideo();
     if (!nextVideo) {
+      logEvent('load_next_failed_empty_pool', { reason });
       setHasError(true);
       setCurrentVideo(null);
+      clearAutoSkip();
       return;
     }
+
+    logEvent('load_next', {
+      reason,
+      nextVideoId: nextVideo.id,
+      nextGame: nextVideo.game,
+    });
 
     setCurrentVideo(nextVideo);
     setHasError(false);
@@ -127,6 +237,9 @@ export default function Home() {
     const videoId = extractVideoId(nextVideo.video_link);
     applyMuteState(player);
     player.loadVideoById(videoId);
+
+    // Rearma cada vez que cambias de vídeo
+    armAutoSkip(`after_load_next:${reason}`);
   };
 
   const toggleMute = () => {
@@ -140,6 +253,7 @@ export default function Home() {
       if (next) player.mute();
       else player.unMute();
 
+      logEvent('toggle_mute', { nextMuted: next });
       return next;
     });
   };
@@ -165,6 +279,9 @@ export default function Home() {
     // En el click (gesto del usuario) ya puedes arrancar con audio
     player.unMute();
     player.loadVideoById(videoId);
+
+    logEvent('start_playback', { videoId, initialVideoId: initial.id });
+    armAutoSkip('start');
   };
 
   // Cargar API YT y crear player
@@ -188,6 +305,8 @@ export default function Home() {
         ? extractVideoId(initialVideo.video_link)
         : '';
 
+      logEvent('yt_api_ready', { initialVideoId: initialVideo?.id ?? null });
+
       playerRef.current = new window.YT.Player('youtube-player', {
         height: '100%',
         width: '100%',
@@ -205,16 +324,33 @@ export default function Home() {
           onReady: () => {
             isPlayerReadyRef.current = true;
             setIsPlayerReady(true);
+            logEvent('player_ready');
           },
           onStateChange: (event: any) => {
-            if (event.data === window.YT.PlayerState.ENDED) {
-              loadNextVideo();
+            const s = event.data as number;
+
+            if (lastStateRef.current !== s) {
+              lastStateRef.current = s;
+              logEvent('yt_state_change', {
+                state: s,
+                stateName: ytStateName(s),
+              });
+            }
+
+            // Si vuelve a PLAYING, rearmamos (útil si hubo pausas/buffering)
+            if (s === window.YT.PlayerState.PLAYING) {
+              armAutoSkip('state:PLAYING');
+            }
+
+            if (s === window.YT.PlayerState.ENDED) {
+              loadNextVideo('ended');
             }
           },
-          onError: () => {
+          onError: (e: any) => {
+            logEvent('yt_error', { code: e?.data ?? null });
             setHasError(true);
             if (hasStartedRef.current) {
-              setTimeout(loadNextVideo, 1500);
+              setTimeout(() => loadNextVideo('error-recovery'), 1500);
             }
           },
         },
@@ -223,6 +359,7 @@ export default function Home() {
 
     return () => {
       try {
+        clearAutoSkip();
         if (playerRef.current) playerRef.current.destroy();
       } catch {}
       window.onYouTubeIframeAPIReady = undefined;
@@ -237,8 +374,14 @@ export default function Home() {
       currentVideoRef.current?.id ?? null
     );
     if (!next) {
+      logEvent('filters_empty_pool', {
+        mode: filterMode,
+        selected: selectedGames,
+        poolSize: filteredVideos.length,
+      });
       setHasError(true);
       setCurrentVideo(null);
+      clearAutoSkip();
       return;
     }
 
@@ -252,26 +395,43 @@ export default function Home() {
     const videoId = extractVideoId(next.video_link);
     applyMuteState(player);
     player.loadVideoById(videoId);
+
+    logEvent('filters_changed_load', {
+      mode: filterMode,
+      selected: selectedGames,
+      poolSize: filteredVideos.length,
+      nextVideoId: next.id,
+    });
+
+    armAutoSkip('filters-change');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMode, selectedKey]);
 
-  // dentro de Home()
-
+  // Tick UI (cada segundo): countdown + tiempo del vídeo
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!isPlayerReadyRef.current) return;
       if (!hasStartedRef.current) return;
-      loadNextVideo();
-    }, TEN_MINUTES_MS);
+
+      const at = autoSkipAtRef.current;
+      if (at) {
+        const now = Date.now();
+        setNextInSec(Math.max(0, Math.ceil((at - now) / 1000)));
+      }
+
+      const player = playerRef.current;
+      if (player?.getCurrentTime)
+        setPlaySec(Math.floor(player.getCurrentTime()));
+      if (player?.getDuration) setDurSec(Math.floor(player.getDuration()));
+    }, TICK_MS);
 
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <main className='flex min-h-screen flex-col bg-background'>
       <nav className='border-b border-border bg-card'>
-        <div className='mx-auto flex w-full  flex-col gap-2 px-4 py-3'>
+        <div className='mx-auto flex w-full flex-col gap-2 px-4 py-3'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
               <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-primary'>
@@ -306,7 +466,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <div className='mx-auto w-full  flex-1 p-4'>
+      <div className='mx-auto w-full flex-1 p-4'>
         <div className='overflow-hidden rounded-lg border border-border bg-black shadow-lg'>
           <div className='relative aspect-video w-full bg-black'>
             <div id='youtube-player' className='absolute inset-0' />
@@ -346,8 +506,14 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className='text-xs text-white/70'>
-                    Pool: {filteredVideos.length}
+                  <div className='text-xs text-white/70 text-right'>
+                    <div>Pool: {filteredVideos.length}</div>
+
+                    {hasStarted && durSec > 0 && (
+                      <div>
+                        Time: {fmtMMSS(playSec)} / {fmtMMSS(durSec)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -374,6 +540,11 @@ export default function Home() {
             )}
 
             <div className='absolute bottom-4 right-4 flex gap-2'>
+              {hasStarted && nextInSec != null && (
+                <div className=' rounded-lg bg-black/70 px-4 py-2 text-2xl font-bold text-white backdrop-blur-sm'>
+                  Next: {fmtMMSS(nextInSec)}
+                </div>
+              )}
               <Button
                 onClick={toggleMute}
                 size='icon'
@@ -389,7 +560,7 @@ export default function Home() {
               </Button>
 
               <Button
-                onClick={loadNextVideo}
+                onClick={() => loadNextVideo('manual-skip')}
                 size='icon'
                 variant='outline'
                 className='h-10 w-10 bg-black/60 backdrop-blur-sm hover:bg-black/80'
