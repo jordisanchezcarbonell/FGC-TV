@@ -1,55 +1,35 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Volume2, VolumeX, SkipForward, Radio, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoData, VIDEOS, extractVideoId } from '../../lib/video-ids';
+import { GameFiltersPro } from '@/components/components/GameFilters';
+import { FilterMode } from '@/components/components/GameFiltersPro';
+import { useRouter } from 'next/navigation';
+const TEN_MINUTES_MS = 10 * 60 * 1000;
 
-function GameChips({
-  games,
-  value,
-  onChange,
-  counts,
-}: {
-  games: string[];
-  value: 'ALL' | string;
-  onChange: (v: 'ALL' | string) => void;
-  counts: Record<string, number>;
-}) {
-  const items = ['ALL', ...games];
+function pickRandom(pool: VideoData[], avoidId?: string | number | null) {
+  if (!pool.length) return null;
+  if (pool.length === 1) return pool[0];
 
-  return (
-    <div className='flex w-full items-center gap-2 overflow-x-auto pb-1 pt-2'>
-      {items.map((g) => {
-        const active = value === g;
-        const label = g === 'ALL' ? 'All' : g;
-        const count = g === 'ALL' ? counts.__ALL__ ?? 0 : counts[g] ?? 0;
-
-        return (
-          <button
-            key={g}
-            type='button'
-            onClick={() => onChange(g)}
-            className={[
-              'shrink-0 rounded-full border px-3 py-1 text-sm transition',
-              active
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-foreground hover:bg-muted',
-            ].join(' ')}
-          >
-            {label}
-            <span className='ml-2 opacity-70'>({count})</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  let next = pool[Math.floor(Math.random() * pool.length)];
+  if (avoidId != null) {
+    let guard = 0;
+    while (String(next.id) === String(avoidId) && guard < 12) {
+      next = pool[Math.floor(Math.random() * pool.length)];
+      guard += 1;
+    }
+  }
+  return next;
 }
 
 export default function Home() {
-  const playerRef = useRef<YT.Player | null>(null);
+  const playerRef = useRef<any>(null);
 
   const [currentVideo, setCurrentVideo] = useState<VideoData | null>(null);
+  const currentVideoRef = useRef<VideoData | null>(null);
 
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(false);
@@ -62,12 +42,17 @@ export default function Home() {
 
   const [hasError, setHasError] = useState(false);
 
-  // Filtros
-  const [gameFilter, setGameFilter] = useState<'ALL' | string>('ALL');
+  // Filtros pro
+  const [filterMode, setFilterMode] = useState<FilterMode>('ALL');
+  const [selectedGames, setSelectedGames] = useState<string[]>([]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
+
+  useEffect(() => {
+    currentVideoRef.current = currentVideo;
+  }, [currentVideo]);
 
   const games = useMemo(() => {
     const set = new Set<string>();
@@ -84,30 +69,41 @@ export default function Home() {
     return counts;
   }, []);
 
+  // key estable para deps
+  const selectedKey = useMemo(
+    () =>
+      selectedGames
+        .slice()
+        .sort((a, b) => a.localeCompare(b))
+        .join('|'),
+    [selectedGames]
+  );
+
   const filteredVideos = useMemo(() => {
-    if (gameFilter === 'ALL') return VIDEOS;
-    return VIDEOS.filter((v) => v.game === gameFilter);
-  }, [gameFilter]);
+    if (filterMode === 'ALL' || selectedGames.length === 0) return VIDEOS;
+
+    const set = new Set(selectedGames);
+
+    if (filterMode === 'ONLY') {
+      return VIDEOS.filter((v) => v.game && set.has(v.game));
+    }
+
+    // EXCLUDE
+    return VIDEOS.filter((v) => !v.game || !set.has(v.game));
+  }, [filterMode, selectedKey]);
+
+  // refs para evitar closures stale en callbacks de YT
+  const poolRef = useRef<VideoData[]>(filteredVideos);
+  useEffect(() => {
+    poolRef.current = filteredVideos;
+  }, [filteredVideos]);
 
   const getRandomVideo = () => {
-    const pool = filteredVideos;
-    if (!pool.length) return null;
-
-    // evita repetir el mismo vídeo inmediatamente (cuando sea posible)
-    if (pool.length === 1) return pool[0];
-
-    let next = pool[Math.floor(Math.random() * pool.length)];
-    if (currentVideo) {
-      let guard = 0;
-      while (next.id === currentVideo.id && guard < 10) {
-        next = pool[Math.floor(Math.random() * pool.length)];
-        guard += 1;
-      }
-    }
-    return next;
+    const pool = poolRef.current;
+    return pickRandom(pool, currentVideoRef.current?.id ?? null);
   };
 
-  const applyMuteState = (player: YT.Player) => {
+  const applyMuteState = (player: any) => {
     if (isMutedRef.current) player.mute();
     else player.unMute();
   };
@@ -153,7 +149,7 @@ export default function Home() {
     const player = playerRef.current;
     if (!player || !isPlayerReadyRef.current) return;
 
-    const initial = currentVideo ?? getRandomVideo();
+    const initial = currentVideoRef.current ?? getRandomVideo();
     if (!initial) return;
 
     setCurrentVideo(initial);
@@ -211,7 +207,7 @@ export default function Home() {
             isPlayerReadyRef.current = true;
             setIsPlayerReady(true);
           },
-          onStateChange: (event: YT.OnStateChangeEvent) => {
+          onStateChange: (event: any) => {
             if (event.data === window.YT.PlayerState.ENDED) {
               loadNextVideo();
             }
@@ -227,14 +223,20 @@ export default function Home() {
     };
 
     return () => {
-      if (playerRef.current) playerRef.current.destroy();
+      try {
+        if (playerRef.current) playerRef.current.destroy();
+      } catch {}
+      window.onYouTubeIframeAPIReady = undefined;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cuando cambia el filtro: selecciona vídeo del nuevo pool y, si ya empezó, lo carga
+  // Cuando cambian filtros: selecciona vídeo del nuevo pool y, si ya empezó, lo carga
   useEffect(() => {
-    const next = getRandomVideo();
+    const next = pickRandom(
+      filteredVideos,
+      currentVideoRef.current?.id ?? null
+    );
     if (!next) {
       setHasError(true);
       setCurrentVideo(null);
@@ -252,12 +254,19 @@ export default function Home() {
     applyMuteState(player);
     player.loadVideoById(videoId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameFilter]);
+  }, [filterMode, selectedKey]);
+
+  // dentro de Home()
+  const router = useRouter();
+
+  setInterval(() => {
+    router.refresh();
+  }, TEN_MINUTES_MS);
 
   return (
     <main className='flex min-h-screen flex-col bg-background'>
       <nav className='border-b border-border bg-card'>
-        <div className='mx-auto flex w-full max-w-[1920px] flex-col gap-2 px-4 py-3'>
+        <div className='mx-auto flex w-full  flex-col gap-2 px-4 py-3'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
               <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-primary'>
@@ -279,17 +288,20 @@ export default function Home() {
             </div>
           </div>
 
-          {/* FILTROS */}
-          <GameChips
+          {/* FILTROS PRO */}
+          <GameFiltersPro
             games={games}
-            value={gameFilter}
-            onChange={setGameFilter}
             counts={gameCounts}
+            mode={filterMode}
+            setMode={setFilterMode}
+            selected={selectedGames}
+            setSelected={setSelectedGames}
+            poolSize={filteredVideos.length}
           />
         </div>
       </nav>
 
-      <div className='mx-auto w-full max-w-[1920px] flex-1 p-4'>
+      <div className='mx-auto w-full  flex-1 p-4'>
         <div className='overflow-hidden rounded-lg border border-border bg-black shadow-lg'>
           <div className='relative aspect-video w-full bg-black'>
             <div id='youtube-player' className='absolute inset-0' />

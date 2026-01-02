@@ -10,7 +10,7 @@ export type FilterMode = 'ALL' | 'ONLY' | 'EXCLUDE';
 
 type Props = {
   games: string[];
-  counts: Record<string, number>; // __ALL__ para total si quieres
+  counts: Record<string, number>; // counts.__ALL__ opcional
   mode: FilterMode;
   setMode: (m: FilterMode) => void;
   selected: string[];
@@ -37,15 +37,12 @@ export function GameFiltersPro({
   const selectedSet = React.useMemo(() => new Set(selected), [selected]);
 
   const items = React.useMemo(() => {
-    const list = [...games];
-
-    // Filtrado por búsqueda
     const query = q.trim().toLowerCase();
-    const filtered = query
-      ? list.filter((g) => g.toLowerCase().includes(query))
-      : list;
 
-    // Orden
+    const filtered = query
+      ? games.filter((g) => g.toLowerCase().includes(query))
+      : [...games];
+
     filtered.sort((a, b) => {
       if (sort === 'popular') return (counts[b] ?? 0) - (counts[a] ?? 0);
       return a.localeCompare(b);
@@ -86,8 +83,6 @@ export function GameFiltersPro({
     else next.add(g);
 
     const nextArr = uniqSorted(Array.from(next));
-
-    // Si queda vacío, vuelve a ALL para evitar estados raros
     if (nextArr.length === 0) {
       setSelected([]);
       setMode('ALL');
@@ -111,15 +106,14 @@ export function GameFiltersPro({
         ? 'border-primary bg-primary text-primary-foreground shadow-sm'
         : 'border-border bg-background text-foreground hover:bg-muted/70';
     }
-    // ALL (no selección)
     return 'border-border bg-background text-foreground hover:bg-muted/70';
   };
 
   return (
     <div className='w-full space-y-2'>
-      {/* Top bar */}
+      {/* TOP BAR */}
       <div className='flex flex-wrap items-center justify-between gap-2'>
-        {/* Segmented control */}
+        {/* Mode segmented */}
         <div className='inline-flex overflow-hidden rounded-full border border-border bg-background'>
           <button
             type='button'
@@ -136,6 +130,7 @@ export function GameFiltersPro({
           >
             All
           </button>
+
           <button
             type='button'
             onClick={() => setMode('ONLY')}
@@ -148,6 +143,7 @@ export function GameFiltersPro({
           >
             Only
           </button>
+
           <button
             type='button'
             onClick={() => setMode('EXCLUDE')}
@@ -195,6 +191,7 @@ export function GameFiltersPro({
             size='sm'
             className='h-8 rounded-full px-3 text-xs'
             onClick={() => selectTop(5)}
+            title='Selecciona los 5 más populares (Only)'
           >
             <Sparkles className='mr-2 h-4 w-4' />
             Top 5
@@ -206,6 +203,7 @@ export function GameFiltersPro({
             size='sm'
             className='h-8 rounded-full px-3 text-xs'
             onClick={() => selectTop(10)}
+            title='Selecciona los 10 más populares (Only)'
           >
             Top 10
           </Button>
@@ -248,7 +246,7 @@ export function GameFiltersPro({
         </div>
       </div>
 
-      {/* Chips list */}
+      {/* CHIPS */}
       <div className='relative w-full'>
         <div
           className={cn(
@@ -272,6 +270,7 @@ export function GameFiltersPro({
                 title={g}
               >
                 <span className='max-w-[22ch] truncate'>{g}</span>
+
                 <Badge
                   variant='outline'
                   className={cn(
@@ -291,15 +290,15 @@ export function GameFiltersPro({
         </div>
       </div>
 
-      {/* Selection summary */}
+      {/* SUMMARY */}
       {mode !== 'ALL' && selected.length > 0 ? (
         <div className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
           <span className='font-medium'>
             {mode === 'ONLY' ? 'Solo:' : 'Excluyendo:'}
           </span>
           <span className='truncate'>
-            {selected.slice(0, 8).join(', ')}
-            {selected.length > 8 ? ` +${selected.length - 8} más` : ''}
+            {selected.slice(0, 10).join(', ')}
+            {selected.length > 10 ? ` +${selected.length - 10} más` : ''}
           </span>
         </div>
       ) : null}
