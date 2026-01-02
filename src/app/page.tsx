@@ -2,7 +2,15 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Volume2, VolumeX, SkipForward, Radio, Play } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  SkipForward,
+  Radio,
+  Play,
+  Maximize,
+  Minimize,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoData, VIDEOS, extractVideoId } from '../../lib/video-ids';
 import { GameFiltersPro } from '@/components/components/GameFilters';
@@ -60,6 +68,10 @@ function fmtMMSS(totalSec: number) {
 export default function Home() {
   const playerRef = useRef<any>(null);
 
+  // contenedor del video para fullscreen del layout (no del iframe)
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   const [currentVideo, setCurrentVideo] = useState<VideoData | null>(null);
   const currentVideoRef = useRef<VideoData | null>(null);
 
@@ -78,10 +90,8 @@ export default function Home() {
   const [filterMode, setFilterMode] = useState<FilterMode>('ALL');
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
 
-  // Timer UI
+  // Timer UI (solo Next)
   const [nextInSec, setNextInSec] = useState<number | null>(null);
-  const [playSec, setPlaySec] = useState(0);
-  const [durSec, setDurSec] = useState(0);
 
   // Auto-skip rearmable
   const autoSkipAtRef = useRef<number | null>(null);
@@ -152,17 +162,15 @@ export default function Home() {
       isReady: isPlayerReadyRef.current,
       isMuted: isMutedRef.current,
       poolSize: poolRef.current.length,
+      fullscreen: !!document.fullscreenElement,
       ...payload,
     };
 
     if (DEBUG) {
-      // Browser console
-
       console.log('[FGC-TV]', base);
     }
 
     if (LOG_TO_SERVER) {
-      // Vercel Logs (Functions) via /api/log
       fetch('/api/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,7 +199,6 @@ export default function Home() {
     return pickRandom(pool, currentVideoRef.current?.id ?? null);
   };
 
-  // arm auto-skip (rearmable)
   const armAutoSkip = (reason: string) => {
     if (!isPlayerReadyRef.current) return;
     if (!hasStartedRef.current) return;
@@ -230,15 +237,12 @@ export default function Home() {
 
     const player = playerRef.current;
     if (!player || !isPlayerReadyRef.current) return;
-
-    // Si el usuario aún no ha hecho click, NO intentes reproducir.
     if (!hasStartedRef.current) return;
 
     const videoId = extractVideoId(nextVideo.video_link);
     applyMuteState(player);
     player.loadVideoById(videoId);
 
-    // Rearma cada vez que cambias de vídeo
     armAutoSkip(`after_load_next:${reason}`);
   };
 
@@ -270,19 +274,44 @@ export default function Home() {
     hasStartedRef.current = true;
     setHasStarted(true);
 
-    // Asegura sonido
     isMutedRef.current = false;
     setIsMuted(false);
 
     const videoId = extractVideoId(initial.video_link);
 
-    // En el click (gesto del usuario) ya puedes arrancar con audio
     player.unMute();
     player.loadVideoById(videoId);
 
     logEvent('start_playback', { videoId, initialVideoId: initial.id });
     armAutoSkip('start');
   };
+
+  const toggleFullscreen = async () => {
+    const el = stageRef.current;
+    if (!el) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      logEvent('fullscreen_error', {
+        message: (e as any)?.message ?? String(e),
+      });
+    }
+  };
+
+  useEffect(() => {
+    const onFs = () => {
+      const on = !!document.fullscreenElement;
+      setIsFullscreen(on);
+      logEvent('fullscreen_change', { on });
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
 
   // Cargar API YT y crear player
   useEffect(() => {
@@ -316,6 +345,7 @@ export default function Home() {
           mute: 0,
           controls: 0,
           rel: 0,
+          fs: 0, // desactiva fullscreen nativo de YouTube
           modestbranding: 1,
           iv_load_policy: 3,
           playsinline: 1,
@@ -337,7 +367,6 @@ export default function Home() {
               });
             }
 
-            // Si vuelve a PLAYING, rearmamos (útil si hubo pausas/buffering)
             if (s === window.YT.PlayerState.PLAYING) {
               armAutoSkip('state:PLAYING');
             }
@@ -407,7 +436,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMode, selectedKey]);
 
-  // Tick UI (cada segundo): countdown + tiempo del vídeo
+  // Tick UI (cada segundo): countdown "Next"
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!isPlayerReadyRef.current) return;
@@ -418,11 +447,6 @@ export default function Home() {
         const now = Date.now();
         setNextInSec(Math.max(0, Math.ceil((at - now) / 1000)));
       }
-
-      const player = playerRef.current;
-      if (player?.getCurrentTime)
-        setPlaySec(Math.floor(player.getCurrentTime()));
-      if (player?.getDuration) setDurSec(Math.floor(player.getDuration()));
     }, TICK_MS);
 
     return () => window.clearInterval(id);
@@ -468,11 +492,11 @@ export default function Home() {
 
       <div className='mx-auto w-full flex-1 p-4'>
         <div className='overflow-hidden rounded-lg border border-border bg-black shadow-lg'>
-          <div className='relative aspect-video w-full bg-black'>
+          <div ref={stageRef} className='relative aspect-video w-full bg-black'>
             <div id='youtube-player' className='absolute inset-0' />
 
             {!hasStarted && (
-              <div className='absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70'>
+              <div className='absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70'>
                 <div className='text-center'>
                   <p className='text-white text-lg font-semibold'>
                     Pulsa para reproducir con sonido
@@ -489,13 +513,13 @@ export default function Home() {
             )}
 
             {hasError && (
-              <div className='absolute inset-0 flex items-center justify-center bg-black/80'>
+              <div className='absolute inset-0 z-10 flex items-center justify-center bg-black/80'>
                 <p className='text-white'>Video unavailable, loading next...</p>
               </div>
             )}
 
             {currentVideo && !hasError && (
-              <div className='absolute left-0 right-0 top-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4'>
+              <div className='absolute left-0 right-0 top-0 z-10 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4'>
                 <div className='flex items-center justify-between'>
                   <div className='flex items-center gap-3'>
                     <div className='rounded bg-primary/90 px-2 py-1 text-xs font-semibold text-primary-foreground'>
@@ -506,14 +530,8 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className='text-xs text-white/70 text-right'>
-                    <div>Pool: {filteredVideos.length}</div>
-
-                    {hasStarted && durSec > 0 && (
-                      <div>
-                        Time: {fmtMMSS(playSec)} / {fmtMMSS(durSec)}
-                      </div>
-                    )}
+                  <div className='text-xs text-white/70'>
+                    Pool: {filteredVideos.length}
                   </div>
                 </div>
 
@@ -539,12 +557,28 @@ export default function Home() {
               </div>
             )}
 
-            <div className='absolute bottom-4 right-4 flex gap-2'>
-              {hasStarted && nextInSec != null && (
-                <div className=' rounded-lg bg-black/70 px-4 py-2 text-2xl font-bold text-white backdrop-blur-sm'>
-                  Next: {fmtMMSS(nextInSec)}
-                </div>
-              )}
+            {/* NEXT: abajo derecha, grande */}
+            {hasStarted && nextInSec != null && (
+              <div className='absolute bottom-4 right-4 z-20 rounded-lg bg-black/70 px-5 py-3 text-3xl font-extrabold text-white backdrop-blur-sm'>
+                Next: {fmtMMSS(nextInSec)}
+              </div>
+            )}
+
+            {/* Controles: abajo izquierda */}
+            <div className='absolute bottom-4 left-4 z-20 flex gap-2'>
+              <Button
+                onClick={toggleFullscreen}
+                size='icon'
+                variant='outline'
+                className='h-10 w-10 bg-black/60 backdrop-blur-sm hover:bg-black/80'
+              >
+                {isFullscreen ? (
+                  <Minimize className='h-4 w-4 text-white' />
+                ) : (
+                  <Maximize className='h-4 w-4 text-white' />
+                )}
+              </Button>
+
               <Button
                 onClick={toggleMute}
                 size='icon'
@@ -553,9 +587,9 @@ export default function Home() {
                 disabled={!isPlayerReady}
               >
                 {isMuted ? (
-                  <VolumeX className='h-4 w-4' />
+                  <VolumeX className='h-4 w-4 text-white' />
                 ) : (
-                  <Volume2 className='h-4 w-4' />
+                  <Volume2 className='h-4 w-4 text-white' />
                 )}
               </Button>
 
@@ -566,7 +600,7 @@ export default function Home() {
                 className='h-10 w-10 bg-black/60 backdrop-blur-sm hover:bg-black/80'
                 disabled={!isPlayerReady || filteredVideos.length === 0}
               >
-                <SkipForward className='h-4 w-4' />
+                <SkipForward className='h-4 w-4 text-white' />
               </Button>
             </div>
           </div>
