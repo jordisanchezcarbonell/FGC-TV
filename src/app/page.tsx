@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { VideoData, VIDEOS, extractVideoId } from '../../lib/video-ids';
 import { GameFiltersPro } from '@/components/components/GameFilters';
 import { FilterMode } from '@/components/components/GameFiltersPro';
-import { useRouter } from 'next/navigation';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 function pickRandom(pool: VideoData[], avoidId?: string | number | null) {
@@ -257,11 +256,17 @@ export default function Home() {
   }, [filterMode, selectedKey]);
 
   // dentro de Home()
-  const router = useRouter();
 
-  setInterval(() => {
-    router.refresh();
-  }, TEN_MINUTES_MS);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!isPlayerReadyRef.current) return;
+      if (!hasStartedRef.current) return;
+      loadNextVideo();
+    }, TEN_MINUTES_MS);
+
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className='flex min-h-screen flex-col bg-background'>
